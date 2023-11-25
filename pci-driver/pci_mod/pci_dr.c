@@ -26,7 +26,7 @@ static struct class *dev_class;
 
 //Device file for IOCTL
 struct file_operations fops = {
-    .owner = "PCI_driver",
+    .owner = THIS_MODULE,
     .unlocked_ioctl = dev_ioctl,
     .open = dev_open,
     .release = dev_release
@@ -67,16 +67,18 @@ static long dev_ioctl(struct file *fops, unsigned int cmd, unsigned long arg)
         default:
             pr_info("Default case in switch.\n");
     }
+    
+    return 0;
 }
 
 static int dev_open(struct inode *node, struct file *fops)
 {
-
+    return 0;
 }
 
 static int dev_release(struct inode *node, struct file *fops)
 {
-    
+    return 0;
 }
 
 /*
@@ -105,9 +107,11 @@ static int my_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 
     log_address = ioremap(net_dev.real, net_dev.size);
 
-    for (unsigned int offset = 0; offset < net_dev.size; offset++) {
+    unsigned int offset;
+    for (offset = 0; offset < net_dev.size; offset++) {
         register_data = 0;
-        for (int byte = 0; byte <= 5; byte++) {
+        int byte = 0;
+        for (byte = 0; byte <= 5; byte++) {
             register_data <<= 8;
             register_data |= inb(log_address + offset + byte);
         }
