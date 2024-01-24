@@ -11,6 +11,8 @@
 #define VENDOR_ID 0x8086
 #define DEVICE_ID 0x2723
 
+#define DEVICE_NAME "pci_dev"
+
 #define DEV_MAC_ADDR 0x24418C95D242
 
 static int my_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
@@ -21,8 +23,7 @@ static int dev_release(struct inode *node, struct file *fops);
 
 static long long register_data = 0;
 
-static dev_t cdev = 0;
-static struct class *dev_class;
+static int major = 0;
 
 //Device file for IOCTL
 struct file_operations fops = {
@@ -139,43 +140,23 @@ static void my_driver_remove(struct pci_dev *pdev)
  */
 int init_module(void)
 {
-    int err;
-    pr_info("Initialization module...\n");
-    pci_register_driver(&network_hard);
-
-    /* Allocating major and minor numbers*/
-    err = alloc_chrdev_region(&cdev, 0, 1, "PCI_chrdev");
-    if (err < 0) {
-        pr_info("Failed allocate major number for device\n");
-        return -1;
+    major = register_chrdev(0, DEVICE_NAME, &fops);
+    if (major < 0) {
+        pr_err("dev_md: can't get major %d\n", major);
+        return major;
     }
-    pr_info("Major = %d Minor = %d\n", MAJOR(cdev), MINOR(cdev));
+    
+    pr_info("Kernel module inserted successfully...\n");
+    pr_info("To talk to device driver, create a device file with \n");
+    pr_info("'mknod /dev/%s c %d 0'.\n", DEVICE_NAME, major);
 
-    /* Creating dev class */
-    dev_class = class_create(THIS_MODULE, "My own class");
-    if (IS_ERR(dev_class)) {
-        pr_err("Cannot create the struct class for device\n");
-    }
-    if (IS_ERR(device_create(dev_class, NULL, cdev, NULL, "pci_ioctl_device"))) {
-        pr_err("Cannot create the Device\n");
-    }
-
-    pr_info("Creating the device is successfully.\n");
     return 0;
-
-    r_device:
-        class_destroy(dev_class);
-    r_class:
-        unregister_chrdev_region(cdev, 1);
-        return -1;
 }
 
 void cleanup_module(void)
 {   
     /* */
-    device_destroy(dev_class, cdev);
-    class_destroy(dev_class);
-    unregister_chrdev_region(cdev, 1);
+    unregister_chrdev(major, DEVICE_NAME);
 
     /* */
     pci_unregister_driver(&network_hard);
